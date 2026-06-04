@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+Dockerfile
+.dockerignore
+npm-debug.log
+README.md
+.env*.local
+coverage
+**/*.test.ts
+**/*.test.tsx
+vitest.config.ts

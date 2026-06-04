@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark / Space theme (default and only theme) */
+    --background: 222 47% 5%;
+    --foreground: 210 40% 96%;
+
+    --card: 222 40% 8%;
+    --card-foreground: 210 40% 96%;
+
+    --muted: 217 33% 14%;
+    --muted-foreground: 215 20% 60%;
+
+    --accent: 217 33% 16%;
+    --accent-foreground: 210 40% 96%;
+
+    --primary: 189 94% 52%;
+    --primary-foreground: 222 47% 6%;
+
+    --secondary: 226 71% 60%;
+    --secondary-foreground: 210 40% 98%;
+
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 18%;
+    --input: 217 33% 18%;
+    --ring: 189 94% 52%;
+
+    --radius: 0.6rem;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    background-image:
+      radial-gradient(circle at 15% 10%, hsl(189 94% 52% / 0.07), transparent 35%),
+      radial-gradient(circle at 85% 0%, hsl(226 71% 60% / 0.08), transparent 40%),
+      radial-gradient(circle at 50% 100%, hsl(226 71% 60% / 0.05), transparent 45%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .starfield::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.6), transparent),
+      radial-gradient(1px 1px at 60% 70%, rgba(255, 255, 255, 0.4), transparent),
+      radial-gradient(1px 1px at 80% 20%, rgba(255, 255, 255, 0.5), transparent),
+      radial-gradient(1px 1px at 35% 85%, rgba(255, 255, 255, 0.4), transparent);
+    background-size: 100% 100%;
+    pointer-events: none;
+  }
+}
+
+/* ---- Tracking map markers ---- */
+.orbit-sat-marker {
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.9));
+  cursor: default;
+}
+.orbit-sun-marker {
+  font-size: 18px;
+  line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(253, 224, 71, 0.9));
+}
+.orbit-station-marker,
+.orbit-pass-marker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.orbit-station-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #f87171;
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+.orbit-station-label,
+.orbit-pass-label {
+  color: #e2e8f0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  font-weight: 600;
+}
+.orbit-pass-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+.orbit-pass-rise { background: #34d399; box-shadow: 0 0 6px rgba(52, 211, 153, 0.9); }
+.orbit-pass-set { background: #fb923c; box-shadow: 0 0 6px rgba(251, 146, 60, 0.9); }
