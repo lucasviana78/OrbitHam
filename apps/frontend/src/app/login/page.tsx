@@ -44,7 +44,7 @@ export default function LoginPage() {
         <CardHeader className="items-center gap-3 text-center">
           <Brand />
           <div>
-            <h1 className="text-xl font-semibold">Mission Control</h1>
+            <h1 className="text-xl font-semibold">Central de Missão</h1>
             <p className="text-sm text-muted-foreground">
               Acesse sua conta para continuar
             </p>

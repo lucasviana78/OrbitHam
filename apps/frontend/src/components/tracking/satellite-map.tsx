@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Map as MlMap, Marker, NavigationControl } from 'maplibre-gl';
 import type { StyleSpecification, GeoJSONSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -14,6 +14,7 @@ import {
 } from '@/lib/orbital';
 import { subsolarPoint, nightPolygon } from '@/lib/solar';
 import { geodesicCircle, splitAntimeridian, type LngLat } from '@/lib/geo';
+import { satelliteColor } from '@/lib/satellite-colors';
 import type { SatRec } from 'satellite.js';
 
 /** Dark "mission control" basemap built from CARTO raster tiles (no API key). */
@@ -37,11 +38,29 @@ const MAP_STYLE: StyleSpecification = {
 const EMPTY_FC = { type: 'FeatureCollection', features: [] } as const;
 
 export interface SatelliteMapProps {
-  satellite: Satellite;
+  /** One or more satellites to render simultaneously. */
+  satellites: Satellite[];
   stations: Station[];
+  /** Passes of the primary (first) satellite — drives the rise/set markers. */
   passes?: Pass[];
-  /** Reports the live propagated state once per second (for the side panel). */
+  /** Reports the primary satellite's live state once per second (side panel). */
   onState?: (state: SatState | null) => void;
+}
+
+interface SatEntry {
+  id: number;
+  name: string;
+  color: string;
+  satrec: SatRec;
+  marker: Marker;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function markerEl(html: string, className: string): HTMLElement {
@@ -56,7 +75,7 @@ function setSourceData(map: MlMap, id: string, data: unknown) {
 }
 
 export function SatelliteMap({
-  satellite,
+  satellites,
   stations,
   passes,
   onState,
@@ -64,13 +83,21 @@ export function SatelliteMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const [ready, setReady] = useState(false);
-  const satRef = useRef<SatRec | null>(null);
-  const satMarkerRef = useRef<Marker | null>(null);
+  const satsRef = useRef<SatEntry[]>([]);
   const sunMarkerRef = useRef<Marker | null>(null);
   const stationMarkersRef = useRef<Marker[]>([]);
   const passMarkersRef = useRef<Marker[]>([]);
   const onStateRef = useRef(onState);
   onStateRef.current = onState;
+
+  // Re-run the build effect only when the *set* of satellites changes
+  // (ids or TLEs), not on every parent re-render with a fresh array.
+  const satKey = useMemo(
+    () => satellites.map((s) => `${s.id}:${s.tle_1 ?? ''}`).join('|'),
+    [satellites],
+  );
+  const satellitesRef = useRef(satellites);
+  satellitesRef.current = satellites;
 
   /* ---- init map once ---- */
   useEffect(() => {
@@ -101,13 +128,20 @@ export function SatelliteMap({
         id: 'footprint-fill',
         type: 'fill',
         source: 'footprint',
-        paint: { 'fill-color': '#38bdf8', 'fill-opacity': 0.12 },
+        paint: {
+          'fill-color': ['get', 'color'],
+          'fill-opacity': 0.12,
+        },
       });
       map.addLayer({
         id: 'footprint-line',
         type: 'line',
         source: 'footprint',
-        paint: { 'line-color': '#38bdf8', 'line-opacity': 0.5, 'line-width': 1 },
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-opacity': 0.5,
+          'line-width': 1,
+        },
       });
 
       map.addSource('track', { type: 'geojson', data: EMPTY_FC as never });
@@ -116,7 +150,7 @@ export function SatelliteMap({
         type: 'line',
         source: 'track',
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#facc15', 'line-width': 2 },
+        paint: { 'line-color': ['get', 'color'], 'line-width': 2 },
       });
 
       setReady(true);
@@ -129,44 +163,58 @@ export function SatelliteMap({
     };
   }, []);
 
-  /* ---- (re)build everything for the selected satellite ---- */
+  /* ---- (re)build everything for the selected satellites ---- */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    if (!satellite.tle_1 || !satellite.tle_2) {
-      onStateRef.current?.(null);
-      return;
-    }
 
-    try {
-      satRef.current = parseTle(satellite.tle_1, satellite.tle_2);
-    } catch {
-      satRef.current = null;
-      onStateRef.current?.(null);
-      return;
-    }
-    const satrec = satRef.current;
+    // Drop markers from the previous selection.
+    satsRef.current.forEach((s) => s.marker.remove());
+    satsRef.current = [];
 
-    if (!satMarkerRef.current) {
-      satMarkerRef.current = new Marker({
-        element: markerEl('🛰️', 'orbit-sat-marker'),
+    const entries: SatEntry[] = [];
+    satellitesRef.current.forEach((sat, i) => {
+      if (!sat.tle_1 || !sat.tle_2) return;
+      let satrec: SatRec;
+      try {
+        satrec = parseTle(sat.tle_1, sat.tle_2);
+      } catch {
+        return;
+      }
+      const color = satelliteColor(entries.length);
+      const marker = new Marker({
+        element: markerEl(
+          `<span class="orbit-sat-emoji">🛰️</span><span class="orbit-sat-label" style="color:${color}">${escapeHtml(sat.name)}</span>`,
+          'orbit-sat-marker',
+        ),
       });
-    }
+      entries.push({ id: sat.id, name: sat.name, color, satrec, marker });
+    });
+    satsRef.current = entries;
+
     if (!sunMarkerRef.current) {
       sunMarkerRef.current = new Marker({
         element: markerEl('☀️', 'orbit-sun-marker'),
       });
     }
 
-    const redrawTrack = (now: Date) => {
-      const segments = splitAntimeridian(groundTrack(satrec, now));
+    if (entries.length === 0) {
+      onStateRef.current?.(null);
+      setSourceData(map, 'track', EMPTY_FC);
+      setSourceData(map, 'footprint', EMPTY_FC);
+      return;
+    }
+
+    const redrawTracks = (now: Date) => {
       setSourceData(map, 'track', {
         type: 'FeatureCollection',
-        features: segments.map((seg) => ({
-          type: 'Feature',
-          properties: {},
-          geometry: { type: 'LineString', coordinates: seg },
-        })),
+        features: entries.flatMap((e) =>
+          splitAntimeridian(groundTrack(e.satrec, now)).map((seg) => ({
+            type: 'Feature',
+            properties: { color: e.color },
+            geometry: { type: 'LineString', coordinates: seg },
+          })),
+        ),
       });
     };
 
@@ -183,38 +231,47 @@ export function SatelliteMap({
     let tick = 0;
     const update = () => {
       const now = new Date();
-      const state = propagateAt(satrec, now);
-      onStateRef.current?.(state);
-      if (!state) return;
+      const footprints: unknown[] = [];
+      let primaryState: SatState | null = null;
 
-      satMarkerRef.current?.setLngLat([state.lon, state.lat]).addTo(map);
-
-      const ring: LngLat[] = geodesicCircle(
-        state.lat,
-        state.lon,
-        footprintRadiusKm(state.altitudeKm),
-      );
-      setSourceData(map, 'footprint', {
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'Polygon', coordinates: [ring] },
+      entries.forEach((e, idx) => {
+        const state = propagateAt(e.satrec, now);
+        if (idx === 0) primaryState = state;
+        if (!state) return;
+        e.marker.setLngLat([state.lon, state.lat]).addTo(map);
+        const ring: LngLat[] = geodesicCircle(
+          state.lat,
+          state.lon,
+          footprintRadiusKm(state.altitudeKm),
+        );
+        footprints.push({
+          type: 'Feature',
+          properties: { color: e.color },
+          geometry: { type: 'Polygon', coordinates: [ring] },
+        });
       });
 
-      if (tick % 15 === 0) redrawTrack(now);
+      onStateRef.current?.(primaryState);
+      setSourceData(map, 'footprint', {
+        type: 'FeatureCollection',
+        features: footprints,
+      });
+
+      if (tick % 15 === 0) redrawTracks(now);
       if (tick % 60 === 0) redrawNight(now);
       tick++;
     };
 
     const now = new Date();
-    const initial = propagateAt(satrec, now);
+    const initial = propagateAt(entries[0].satrec, now);
     if (initial) map.jumpTo({ center: [initial.lon, initial.lat], zoom: 1.6 });
-    redrawTrack(now);
+    redrawTracks(now);
     redrawNight(now);
     update();
 
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [ready, satellite.id, satellite.tle_1, satellite.tle_2]);
+  }, [ready, satKey]);
 
   /* ---- station markers ---- */
   useEffect(() => {
@@ -224,7 +281,7 @@ export function SatelliteMap({
     stationMarkersRef.current = stations.map((s) =>
       new Marker({
         element: markerEl(
-          `<span class="orbit-station-dot"></span><span class="orbit-station-label">${s.callsign}</span>`,
+          `<span class="orbit-station-dot"></span><span class="orbit-station-label">${escapeHtml(s.callsign)}</span>`,
           'orbit-station-marker',
         ),
       })
@@ -237,18 +294,18 @@ export function SatelliteMap({
     };
   }, [ready, stations]);
 
-  /* ---- rise/set markers for the next pass ---- */
+  /* ---- rise/set markers for the primary satellite's next pass ---- */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
     passMarkersRef.current.forEach((m) => m.remove());
     passMarkersRef.current = [];
-    const satrec = satRef.current;
+    const satrec = satsRef.current[0]?.satrec;
     if (satrec && passes?.length) {
       const next = passes[0];
       const points = [
-        { time: next.rise, label: 'AOS', kind: 'rise' },
-        { time: next.set, label: 'LOS', kind: 'set' },
+        { time: next.rise, label: 'Subida', kind: 'rise' },
+        { time: next.set, label: 'Descida', kind: 'set' },
       ];
       for (const p of points) {
         const state = propagateAt(satrec, new Date(p.time));
@@ -269,7 +326,7 @@ export function SatelliteMap({
       passMarkersRef.current.forEach((m) => m.remove());
       passMarkersRef.current = [];
     };
-  }, [ready, passes, satellite.id]);
+  }, [ready, passes, satKey]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }

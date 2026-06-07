@@ -9,8 +9,11 @@ from satellites.models import Satellite
 from satellites.services.satellite_service import SatelliteService
 from stations.repositories.station_repository import StationRepository
 
-MAX_NEXT_PASSES = 5
+MAX_NEXT_PASSES = 20
 MAX_ACTIVE_SATELLITES_FOR_PASSES = 5
+DEFAULT_PASS_DAYS = 1
+MIN_PASS_DAYS = 1
+MAX_PASS_DAYS = 10
 
 
 @dataclass
@@ -45,14 +48,19 @@ class DashboardService:
         self.passes = pass_query_service or PassQueryService()
 
     def build_for_user(
-        self, user_id: int, station_id: int | None = None
+        self,
+        user_id: int,
+        station_id: int | None = None,
+        days: int = DEFAULT_PASS_DAYS,
     ) -> DashboardData:
         """Assemble dashboard data for the given user.
 
         ``next_passes`` is empty if the user has no station. It considers the
         station identified by ``station_id`` (when it belongs to the user),
-        falling back to the user's first station otherwise.
+        falling back to the user's first station otherwise. ``days`` bounds the
+        prediction window and is clamped to ``[MIN_PASS_DAYS, MAX_PASS_DAYS]``.
         """
+        days = max(MIN_PASS_DAYS, min(MAX_PASS_DAYS, days))
         active = self.satellites.list_active()
         total_stations = len(self.station_repo.list_by_user(user_id))
 
@@ -69,7 +77,7 @@ class DashboardService:
             for satellite in active[:MAX_ACTIVE_SATELLITES_FOR_PASSES]:
                 try:
                     windows = self.passes.passes_for_entities(
-                        satellite=satellite, station=station, days=3
+                        satellite=satellite, station=station, days=days
                     )
                 except Exception:
                     continue

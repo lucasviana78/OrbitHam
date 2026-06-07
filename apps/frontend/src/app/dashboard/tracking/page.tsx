@@ -94,7 +94,7 @@ export default function TrackingPage() {
     <div>
       <PageHeader
         title="Mapa em Tempo Real"
-        description="Rastreamento orbital ao vivo: trajetória, footprint e dia/noite (SGP4 no navegador)."
+        description="Rastreamento orbital ao vivo: trajetória, área de cobertura e dia/noite (SGP4 no navegador)."
       />
 
       <Card className="mb-4">
@@ -132,7 +132,7 @@ export default function TrackingPage() {
           {selected && (
             <div className="h-[68vh] min-h-[460px] w-full overflow-hidden rounded-b-lg">
               <SatelliteMap
-                satellite={selected}
+                satellites={[selected]}
                 stations={stations.data ?? []}
                 passes={passes.data}
                 onState={setState}
@@ -148,7 +148,7 @@ export default function TrackingPage() {
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded-full border border-[#38bdf8] bg-[#38bdf8]/20" />{' '}
-          Footprint
+          Cobertura
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded-full bg-[#f87171]" /> Estação

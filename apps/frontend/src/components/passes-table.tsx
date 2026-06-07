@@ -28,9 +28,9 @@ export function PassesTable({
       <TableHeader>
         <TableRow>
           {showSatellite && <TableHead>Satélite</TableHead>}
-          <TableHead>Subida (rise)</TableHead>
-          <TableHead>Pico (peak)</TableHead>
-          <TableHead>Descida (set)</TableHead>
+          <TableHead>Subida</TableHead>
+          <TableHead>Pico</TableHead>
+          <TableHead>Descida</TableHead>
           <TableHead className="text-right">Elevação máx.</TableHead>
         </TableRow>
       </TableHeader>

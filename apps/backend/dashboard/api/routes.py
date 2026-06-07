@@ -15,13 +15,18 @@ _service = DashboardService()
 
 
 @router.get("")
-def get_dashboard(request: HttpRequest, station_id: int | None = None):
+def get_dashboard(
+    request: HttpRequest, station_id: int | None = None, days: int = 1
+):
     """Return aggregated dashboard data for the authenticated user.
 
     ``station_id`` optionally selects which station drives ``next_passes``;
     it falls back to the user's first station when omitted or invalid.
+    ``days`` bounds the ``next_passes`` prediction window (clamped server-side).
     """
-    data = _service.build_for_user(request.auth.id, station_id=station_id)
+    data = _service.build_for_user(
+        request.auth.id, station_id=station_id, days=days
+    )
     return ok(
         {
             "active_satellites_count": data.active_satellites_count,

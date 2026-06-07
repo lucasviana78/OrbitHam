@@ -105,14 +105,18 @@ def satellite_not_found_handler(request, exc):
 
 @api.exception_handler(ValidationError)
 def validation_handler(request, exc):
-    """Normalise Ninja 422 validation errors into the envelope."""
+    """Normalise Ninja 422 validation errors into the envelope (in Portuguese).
+
+    Pydantic's raw messages are in English, so we report a generic
+    Portuguese message naming the offending field instead of leaking them.
+    """
     errors = exc.errors
     try:
         first = errors[0]
         loc = ".".join(str(p) for p in first.get("loc", []) if p != "body")
-        message = f"{loc}: {first.get('msg')}" if loc else first.get("msg", "Validation error")
+        message = f"Campo '{loc}' inválido" if loc else "Dados inválidos"
     except Exception:  # pragma: no cover
-        message = "Validation error"
+        message = "Dados inválidos"
     return api.create_response(
         request, {"success": False, "message": message}, status=422
     )

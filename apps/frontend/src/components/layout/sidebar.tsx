@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   RadioTower,
   Satellite,
-  Radar,
   Globe2,
   LogOut,
 } from 'lucide-react';
@@ -20,7 +19,6 @@ const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/stations', label: 'Estações', icon: RadioTower },
   { href: '/dashboard/satellites', label: 'Satélites', icon: Satellite },
-  { href: '/dashboard/passes', label: 'Passagens', icon: Radar },
   { href: '/dashboard/tracking', label: 'Mapa', icon: Globe2 },
 ];
 
@@ -84,7 +82,7 @@ export function Sidebar() {
           disabled={logout.isPending}
         >
           <LogOut className="h-4 w-4" />
-          {logout.isPending ? 'Saindo…' : 'Logout'}
+          {logout.isPending ? 'Saindo…' : 'Sair'}
         </Button>
       </div>
     </aside>

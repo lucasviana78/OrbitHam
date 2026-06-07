@@ -71,10 +71,21 @@
 
 /* ---- Tracking map markers ---- */
 .orbit-sat-marker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  cursor: default;
+}
+.orbit-sat-emoji {
   font-size: 22px;
   line-height: 1;
   filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.9));
-  cursor: default;
+}
+.orbit-sat-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
 }
 .orbit-sun-marker {
   font-size: 18px;
