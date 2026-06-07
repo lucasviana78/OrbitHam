@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { LocateFixed, Loader2 } from 'lucide-react';
 import { stationFormSchema, type StationFormInput, type Station } from '@/types';
 import { useCreateStation, useUpdateStation } from '@/hooks/use-stations';
 import { ApiError } from '@/services/api';
@@ -21,10 +22,13 @@ export function StationForm({ station, onDone, onCancel }: Props) {
   const create = useCreateStation();
   const update = useUpdateStation();
   const [formError, setFormError] = useState<string | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<StationFormInput>({
     resolver: zodResolver(stationFormSchema),
@@ -38,6 +42,45 @@ export function StationForm({ station, onDone, onCancel }: Props) {
         }
       : { name: '', callsign: '', latitude: 0, longitude: 0, altitude: 0 },
   });
+
+  const handleLocate = () => {
+    setGeoError(null);
+    if (!('geolocation' in navigator)) {
+      setGeoError('Seu navegador não suporta geolocalização.');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude, altitude } = pos.coords;
+        const round = (n: number) => Math.round(n * 1e6) / 1e6;
+        setValue('latitude', round(latitude), {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
+        setValue('longitude', round(longitude), {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
+        if (altitude != null && Number.isFinite(altitude)) {
+          setValue('altitude', Math.round(altitude), {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
+        }
+        setLocating(false);
+      },
+      (err) => {
+        const message =
+          err.code === err.PERMISSION_DENIED
+            ? 'Permissão de localização negada. Habilite no navegador para usar este recurso.'
+            : 'Não foi possível obter sua localização. Tente novamente ou preencha manualmente.';
+        setGeoError(message);
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+  };
 
   const onSubmit = async (values: StationFormInput) => {
     setFormError(null);
@@ -78,6 +121,23 @@ export function StationForm({ station, onDone, onCancel }: Props) {
             {...register('altitude')}
           />
           <FieldError message={errors.altitude?.message} />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleLocate}
+            disabled={locating}
+          >
+            {locating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <LocateFixed className="h-4 w-4" />
+            )}
+            {locating ? 'Localizando…' : 'Usar minha localização atual'}
+          </Button>
+          <FieldError message={geoError ?? undefined} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="latitude">Latitude</Label>
