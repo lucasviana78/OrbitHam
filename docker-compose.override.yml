@@ -1,0 +1,21 @@
+# Override de DESENVOLVIMENTO — aplicado automaticamente pelo `docker compose`.
+# Roda o frontend em modo `next dev` com hot reload, montando o código-fonte
+# como volume. NÃO use em produção (lá use só o docker-compose.yml).
+#
+#   Subir em dev:   docker compose up -d
+#   Subir em prod:  docker compose -f docker-compose.yml up -d --build
+
+services:
+  frontend:
+    build:
+      context: ./apps/frontend
+      target: builder            # stage com devDependencies + código completo
+    command: npm run dev -- -H 0.0.0.0 -p 3000
+    environment:
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"  # garante detecção de mudanças no WSL2/Docker
+    volumes:
+      - ./apps/frontend:/app     # código-fonte do host -> hot reload
+      - /app/node_modules        # preserva node_modules da imagem
+      - /app/.next               # cache de build isolado do host
+    restart: unless-stopped
