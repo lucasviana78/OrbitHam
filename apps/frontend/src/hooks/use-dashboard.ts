@@ -4,9 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { dashboardService } from '@/services/dashboard';
 import type { Dashboard } from '@/types';
 
-export function useDashboard() {
+export function useDashboard(stationId?: number) {
   return useQuery<Dashboard>({
-    queryKey: ['dashboard'],
-    queryFn: () => dashboardService.get(),
+    queryKey: ['dashboard', stationId ?? null],
+    queryFn: () => dashboardService.get(stationId),
   });
 }

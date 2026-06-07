@@ -1,11 +1,42 @@
 # Override de DESENVOLVIMENTO — aplicado automaticamente pelo `docker compose`.
-# Roda o frontend em modo `next dev` com hot reload, montando o código-fonte
-# como volume. NÃO use em produção (lá use só o docker-compose.yml).
+# Liga hot reload no frontend (next dev) e no backend (Django runserver +
+# autoreload do Celery via watchmedo), montando o código-fonte como volume.
+# NÃO use em produção (lá use só o docker-compose.yml).
 #
 #   Subir em dev:   docker compose up -d
 #   Subir em prod:  docker compose -f docker-compose.yml up -d --build
 
 services:
+  backend:
+    environment:
+      DJANGO_DEBUG: "1"
+    # runserver recarrega sozinho ao salvar qualquer .py.
+    # Forma de lista (exec) evita o duplo wrapping em /bin/sh do Compose.
+    command:
+      - sh
+      - -c
+      - "python manage.py migrate --noinput && python manage.py seed_demo && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./apps/backend:/app
+
+  celery-worker:
+    # watchdog instalado só aqui (dev); reinicia o worker ao salvar .py.
+    # watchmedo: <comando> -- <args do comando>
+    command:
+      - sh
+      - -c
+      - "pip install --quiet --root-user-action=ignore watchdog && watchmedo auto-restart --directory=/app --patterns='*.py' --recursive celery -- -A orbitham worker -l info"
+    volumes:
+      - ./apps/backend:/app
+
+  celery-beat:
+    command:
+      - sh
+      - -c
+      - "pip install --quiet --root-user-action=ignore watchdog && watchmedo auto-restart --directory=/app --patterns='*.py' --recursive celery -- -A orbitham beat -l info"
+    volumes:
+      - ./apps/backend:/app
+
   frontend:
     build:
       context: ./apps/frontend

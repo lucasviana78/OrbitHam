@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { Satellite, RadioTower, Radar } from 'lucide-react';
 import { useDashboard } from '@/hooks/use-dashboard';
+import { useStations } from '@/hooks/use-stations';
 import { PageHeader } from '@/components/layout/page-header';
 import { PassesTable } from '@/components/passes-table';
 import {
@@ -11,6 +13,8 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states';
 
 function StatCard({
@@ -38,7 +42,13 @@ function StatCard({
 }
 
 export default function DashboardPage() {
-  const { data, isLoading, isError, error } = useDashboard();
+  const { data: stations } = useStations();
+  const [selectedStationId, setSelectedStationId] = useState<number | null>(
+    null,
+  );
+  const effectiveStationId = selectedStationId ?? stations?.[0]?.id;
+  const { data, isLoading, isError, error } =
+    useDashboard(effectiveStationId);
 
   return (
     <div>
@@ -71,14 +81,34 @@ export default function DashboardPage() {
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Próximas passagens</CardTitle>
-              <CardDescription>
-                Considerando sua primeira estação e satélites ativos.
-              </CardDescription>
+            <CardHeader className="flex-row items-start justify-between gap-4">
+              <div className="space-y-1.5">
+                <CardTitle>Próximas passagens</CardTitle>
+                <CardDescription>
+                  Considerando a estação selecionada e satélites ativos.
+                </CardDescription>
+              </div>
+              {stations && stations.length > 0 && (
+                <div className="w-full max-w-[16rem] space-y-1.5">
+                  <Label htmlFor="dashboard-station">Estação</Label>
+                  <Select
+                    id="dashboard-station"
+                    value={effectiveStationId ?? ''}
+                    onChange={(e) =>
+                      setSelectedStationId(Number(e.target.value))
+                    }
+                  >
+                    {stations.map((station) => (
+                      <option key={station.id} value={station.id}>
+                        {station.name} ({station.callsign})
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
-              <PassesTable passes={data.next_passes} />
+              <PassesTable passes={data.next_passes} showSatellite />
             </CardContent>
           </Card>
 

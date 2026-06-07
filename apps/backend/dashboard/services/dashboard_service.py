@@ -14,12 +14,20 @@ MAX_ACTIVE_SATELLITES_FOR_PASSES = 5
 
 
 @dataclass
+class DashboardPass:
+    """A predicted pass paired with the satellite it belongs to."""
+
+    satellite: Satellite
+    window: PassWindow
+
+
+@dataclass
 class DashboardData:
     """Aggregated dashboard payload."""
 
     active_satellites_count: int
     total_stations: int
-    next_passes: list[PassWindow]
+    next_passes: list[DashboardPass]
     active_satellites: list[Satellite]
 
 
@@ -36,17 +44,27 @@ class DashboardService:
         self.station_repo = station_repository or StationRepository()
         self.passes = pass_query_service or PassQueryService()
 
-    def build_for_user(self, user_id: int) -> DashboardData:
+    def build_for_user(
+        self, user_id: int, station_id: int | None = None
+    ) -> DashboardData:
         """Assemble dashboard data for the given user.
 
         ``next_passes`` is empty if the user has no station. It considers the
-        user's first station and the active satellites.
+        station identified by ``station_id`` (when it belongs to the user),
+        falling back to the user's first station otherwise.
         """
         active = self.satellites.list_active()
         total_stations = len(self.station_repo.list_by_user(user_id))
-        station = self.station_repo.first_by_user(user_id)
 
-        next_passes: list[PassWindow] = []
+        station = None
+        if station_id is not None:
+            candidate = self.station_repo.get_by_id(station_id)
+            if candidate is not None and candidate.user_id == user_id:
+                station = candidate
+        if station is None:
+            station = self.station_repo.first_by_user(user_id)
+
+        next_passes: list[DashboardPass] = []
         if station is not None:
             for satellite in active[:MAX_ACTIVE_SATELLITES_FOR_PASSES]:
                 try:
@@ -55,8 +73,11 @@ class DashboardService:
                     )
                 except Exception:
                     continue
-                next_passes.extend(windows)
-            next_passes.sort(key=lambda p: p.rise)
+                next_passes.extend(
+                    DashboardPass(satellite=satellite, window=w)
+                    for w in windows
+                )
+            next_passes.sort(key=lambda dp: dp.window.rise)
             next_passes = next_passes[:MAX_NEXT_PASSES]
 
         return DashboardData(

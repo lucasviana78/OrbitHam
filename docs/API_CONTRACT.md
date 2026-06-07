@@ -73,9 +73,13 @@ Cálculo com **Skyfield/SGP4** a partir do TLE do satélite e lat/lon/alt da est
 ## Dashboard — protegido
 | Método | Rota | Resposta `data` |
 |---|---|---|
-| GET | `/api/dashboard` | `{ active_satellites_count, total_stations, next_passes: Pass[], active_satellites: Satellite[] }` |
+| GET | `/api/dashboard?station_id={id}` | `{ active_satellites_count, total_stations, next_passes: DashboardPass[], active_satellites: Satellite[] }` |
 
-`next_passes`: próximas passagens (até ~5) considerando a primeira estação do usuário e satélites ativos; vazio se o usuário não tem estação.
+`station_id` (opcional): seleciona a estação que dirige `next_passes`; quando omitido ou inválido, usa a primeira estação do usuário.
+
+`DashboardPass` = `Pass` + `{ satellite_id, satellite_name }`.
+
+`next_passes`: próximas passagens (até ~5) considerando a estação selecionada e satélites ativos; vazio se o usuário não tem estação.
 
 ## Tipos compartilhados
 Definir os tipos TS em `packages/shared-types` (ou `apps/frontend/src/types`) espelhando exatamente os Schemas do Django Ninja. Frontend valida respostas com Zod.

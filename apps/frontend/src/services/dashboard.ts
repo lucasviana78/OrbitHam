@@ -2,6 +2,9 @@ import { apiFetchValidated } from './api';
 import { dashboardSchema, type Dashboard } from '@/types';
 
 export const dashboardService = {
-  get: (): Promise<Dashboard> =>
-    apiFetchValidated('/dashboard', dashboardSchema),
+  get: (stationId?: number): Promise<Dashboard> =>
+    apiFetchValidated(
+      stationId != null ? `/dashboard?station_id=${stationId}` : '/dashboard',
+      dashboardSchema,
+    ),
 };

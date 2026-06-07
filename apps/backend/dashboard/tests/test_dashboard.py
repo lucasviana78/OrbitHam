@@ -40,3 +40,30 @@ def test_dashboard_with_station_returns_shape(api_client, user, auth_cookies):
     data = resp.json()["data"]
     assert data["total_stations"] == 1
     assert isinstance(data["next_passes"], list)
+
+
+def test_dashboard_accepts_station_id(api_client, user, auth_cookies):
+    StationFactory(user=user)
+    station = StationFactory(user=user)
+    SatelliteFactory()
+    resp = api_client.get(
+        f"/dashboard?station_id={station.id}", COOKIES=auth_cookies
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["total_stations"] == 2
+    assert isinstance(data["next_passes"], list)
+
+
+def test_dashboard_ignores_station_of_another_user(
+    api_client, user, auth_cookies
+):
+    StationFactory(user=user)
+    foreign = StationFactory()  # belongs to a different user
+    SatelliteFactory()
+    resp = api_client.get(
+        f"/dashboard?station_id={foreign.id}", COOKIES=auth_cookies
+    )
+    # Falls back to the user's own station instead of erroring.
+    assert resp.status_code == 200
+    assert resp.json()["data"]["total_stations"] == 1

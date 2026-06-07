@@ -105,10 +105,16 @@ export const passListSchema = z.array(passSchema);
 /* Dashboard                                                           */
 /* ------------------------------------------------------------------ */
 
+export const dashboardPassSchema = passSchema.extend({
+  satellite_id: z.number(),
+  satellite_name: z.string(),
+});
+export type DashboardPass = z.infer<typeof dashboardPassSchema>;
+
 export const dashboardSchema = z.object({
   active_satellites_count: z.number(),
   total_stations: z.number(),
-  next_passes: passListSchema,
+  next_passes: z.array(dashboardPassSchema),
   active_satellites: satelliteListSchema,
 });
 export type Dashboard = z.infer<typeof dashboardSchema>;
