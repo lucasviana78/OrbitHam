@@ -7,7 +7,7 @@ from ninja import Query, Router
 
 from common.envelope import ok
 from satellites.models import Satellite
-from satellites.schemas import SatelliteOut
+from satellites.schemas import SatelliteFrequencyIn, SatelliteOut
 from satellites.services.satellite_service import SatelliteService
 from satellites.tasks import update_tle_task
 from users.api.auth import cookie_auth
@@ -23,6 +23,7 @@ def serialize_satellite(satellite: Satellite) -> dict:
         name=satellite.name,
         category=satellite.category,
         status=satellite.status,
+        downlink_mhz=satellite.downlink_mhz,
         tle_1=satellite.tle_1,
         tle_2=satellite.tle_2,
         updated_at=satellite.updated_at,
@@ -44,6 +45,15 @@ def list_satellites(
 def get_satellite(request: HttpRequest, satellite_id: int):
     """Retrieve a single satellite by id."""
     return ok(serialize_satellite(_service.get_by_id(satellite_id)))
+
+
+@router.patch("/{int:satellite_id}/frequency")
+def set_satellite_frequency(
+    request: HttpRequest, satellite_id: int, payload: SatelliteFrequencyIn
+):
+    """Set (or clear) a satellite's downlink frequency in MHz."""
+    satellite = _service.set_frequency(satellite_id, payload.downlink_mhz)
+    return ok(serialize_satellite(satellite))
 
 
 @router.post("/import")

@@ -81,6 +81,7 @@ export const satelliteSchema = z.object({
   name: z.string(),
   category: z.string().nullable().optional(),
   status: z.string().nullable().optional(),
+  downlink_mhz: z.number().nullable().optional(),
   tle_1: z.string().nullable().optional(),
   tle_2: z.string().nullable().optional(),
   updated_at: z.string().nullable().optional(),

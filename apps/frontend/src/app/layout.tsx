@@ -3,7 +3,7 @@ import './globals.css';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
-  title: 'OrbitHam — Central de Missão',
+  title: 'OrbitHam · Central de Missão',
   description:
     'Acompanhamento de satélites em órbita baixa para radioamadores.',
 };

@@ -10,7 +10,9 @@ import { ApiError } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { FieldError, FormError } from '@/components/ui/field';
+import { BR_CAPITALS, CAPITAL_BY_UF } from '@/lib/br-capitals';
 
 interface Props {
   station?: Station;
@@ -42,6 +44,17 @@ export function StationForm({ station, onDone, onCancel }: Props) {
         }
       : { name: '', callsign: '', latitude: 0, longitude: 0, altitude: 0 },
   });
+
+  const handleCapital = (uf: string) => {
+    const cap = CAPITAL_BY_UF[uf];
+    if (!cap) return;
+    setValue('latitude', cap.lat, { shouldValidate: true, shouldDirty: true });
+    setValue('longitude', cap.lon, { shouldValidate: true, shouldDirty: true });
+    setValue('altitude', cap.altitude, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+  };
 
   const handleLocate = () => {
     setGeoError(null);
@@ -123,20 +136,39 @@ export function StationForm({ station, onDone, onCancel }: Props) {
           <FieldError message={errors.altitude?.message} />
         </div>
         <div className="space-y-1.5 sm:col-span-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleLocate}
-            disabled={locating}
-          >
-            {locating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <LocateFixed className="h-4 w-4" />
-            )}
-            {locating ? 'Localizando…' : 'Usar minha localização atual'}
-          </Button>
+          <Label htmlFor="capital">Preenchimento rápido</Label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Select
+              id="capital"
+              value=""
+              onChange={(e) => handleCapital(e.target.value)}
+              className="sm:max-w-xs"
+            >
+              <option value="">Escolher capital…</option>
+              {BR_CAPITALS.map((group) => (
+                <optgroup key={group.region} label={group.region}>
+                  {group.capitals.map((c) => (
+                    <option key={c.uf} value={c.uf}>
+                      {c.city} ({c.uf})
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleLocate}
+              disabled={locating}
+            >
+              {locating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <LocateFixed className="h-4 w-4" />
+              )}
+              {locating ? 'Localizando…' : 'Usar minha localização atual'}
+            </Button>
+          </div>
           <FieldError message={geoError ?? undefined} />
         </div>
         <div className="space-y-1.5">

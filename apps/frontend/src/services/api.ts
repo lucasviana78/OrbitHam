@@ -18,7 +18,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   /** Query params appended to the URL (undefined/null values are skipped). */
   query?: Record<string, string | number | undefined | null>;

@@ -25,6 +25,18 @@ class SatelliteService:
             raise SatelliteNotFoundException()
         return satellite
 
+    def set_frequency(
+        self, satellite_id: int, downlink_mhz: float | None
+    ) -> Satellite:
+        """Set (or clear) a satellite's downlink frequency in MHz.
+
+        Non-positive values are treated as clearing the frequency.
+        """
+        satellite = self.get_by_id(satellite_id)
+        if downlink_mhz is not None and downlink_mhz <= 0:
+            downlink_mhz = None
+        return self.repository.update(satellite, downlink_mhz=downlink_mhz)
+
     def list_active(self) -> list[Satellite]:
         """Return all active satellites."""
         return self.repository.list_active()

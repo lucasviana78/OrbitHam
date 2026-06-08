@@ -37,3 +37,21 @@ export function formatTime(iso: string): string {
 export function formatElevation(deg: number): string {
   return `${deg.toFixed(1)}°`;
 }
+
+/**
+ * Format the duration between two ISO datetimes (e.g. a pass rise→set) as a
+ * compact human string like "8 min 12 s" or "1 h 03 min". Returns "—" if either
+ * end cannot be parsed.
+ */
+export function formatDuration(startIso: string, endIso: string): string {
+  const start = new Date(startIso).getTime();
+  const end = new Date(endIso).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return '—';
+  const totalSec = Math.max(0, Math.round((end - start) / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h} h ${String(m).padStart(2, '0')} min`;
+  if (m > 0) return `${m} min ${String(s).padStart(2, '0')} s`;
+  return `${s} s`;
+}

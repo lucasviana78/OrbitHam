@@ -41,8 +41,10 @@ export interface SatelliteMapProps {
   /** One or more satellites to render simultaneously. */
   satellites: Satellite[];
   stations: Station[];
-  /** Passes of the primary (first) satellite — drives the rise/set markers. */
+  /** Passes of the primary (first) satellite; drives the rise/set markers. */
   passes?: Pass[];
+  /** Station the primary satellite's distance/elevation is measured from. */
+  observer?: Station;
   /** Reports the primary satellite's live state once per second (side panel). */
   onState?: (state: SatState | null) => void;
 }
@@ -78,6 +80,7 @@ export function SatelliteMap({
   satellites,
   stations,
   passes,
+  observer,
   onState,
 }: SatelliteMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -98,6 +101,9 @@ export function SatelliteMap({
   );
   const satellitesRef = useRef(satellites);
   satellitesRef.current = satellites;
+  // Read inside the 1 Hz loop without restarting it when the station changes.
+  const observerRef = useRef(observer);
+  observerRef.current = observer;
 
   /* ---- init map once ---- */
   useEffect(() => {
@@ -235,7 +241,16 @@ export function SatelliteMap({
       let primaryState: SatState | null = null;
 
       entries.forEach((e, idx) => {
-        const state = propagateAt(e.satrec, now);
+        // Only the primary satellite carries the observer-relative distance.
+        const obs =
+          idx === 0 && observerRef.current
+            ? {
+                latitude: observerRef.current.latitude,
+                longitude: observerRef.current.longitude,
+                altitudeKm: observerRef.current.altitude / 1000,
+              }
+            : undefined;
+        const state = propagateAt(e.satrec, now, obs);
         if (idx === 0) primaryState = state;
         if (!state) return;
         e.marker.setLngLat([state.lon, state.lat]).addTo(map);

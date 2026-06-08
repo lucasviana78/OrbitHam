@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import {
   Satellite,
@@ -10,6 +10,8 @@ import {
   Gauge,
   Mountain,
   MapPin,
+  Ruler,
+  Timer,
   X,
 } from 'lucide-react';
 import { useDashboard } from '@/hooks/use-dashboard';
@@ -17,6 +19,9 @@ import { useStations } from '@/hooks/use-stations';
 import { useSatellites } from '@/hooks/use-satellites';
 import { usePasses } from '@/hooks/use-passes';
 import { satelliteColor } from '@/lib/satellite-colors';
+import { cn, formatDateTime } from '@/lib/utils';
+import { AntennaPointing } from '@/components/tracking/antenna-pointing';
+import type { DashboardPass } from '@/types';
 import { PageHeader } from '@/components/layout/page-header';
 import { PassesTable } from '@/components/passes-table';
 import {
@@ -33,7 +38,7 @@ import type { SatState } from '@/lib/orbital';
 
 const ISS_NORAD = 25544;
 
-// MapLibre touches the DOM/WebGL — load it only in the browser.
+// MapLibre touches the DOM/WebGL, so load it only in the browser.
 const SatelliteMap = dynamic(
   () =>
     import('@/components/tracking/satellite-map').then((m) => m.SatelliteMap),
@@ -66,10 +71,24 @@ function Telemetry({ state }: { state: SatState | null }) {
       label: 'Velocidade',
       value: state ? `${(state.velocityKmS * 3600).toFixed(0)} km/h` : '—',
     },
+    {
+      icon: Ruler,
+      label: 'Distância',
+      value:
+        state?.rangeKm != null
+          ? `${Math.round(state.rangeKm).toLocaleString('pt-BR')} km`
+          : '—',
+      title:
+        state?.elevationDeg != null
+          ? state.elevationDeg >= 0
+            ? `Elevação ${state.elevationDeg.toFixed(1)}°`
+            : 'Abaixo do horizonte'
+          : undefined,
+    },
   ];
   return (
-    <div className="grid grid-cols-3 gap-3">
-      {items.map(({ icon: Icon, label, value }) => (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {items.map(({ icon: Icon, label, value, title }) => (
         <div
           key={label}
           className="rounded-md border border-border bg-card/60 p-3"
@@ -78,7 +97,12 @@ function Telemetry({ state }: { state: SatState | null }) {
             <Icon className="h-3.5 w-3.5" />
             {label}
           </div>
-          <p className="mt-1 font-mono text-sm text-foreground">{value}</p>
+          <p
+            className="mt-1 font-mono text-sm text-foreground"
+            title={title}
+          >
+            {value}
+          </p>
         </div>
       ))}
     </div>
@@ -103,6 +127,75 @@ function StatCard({
         </div>
         <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-primary/30 bg-primary/10">
           <Icon className="h-6 w-6 text-primary" />
+        </span>
+      </CardContent>
+    </Card>
+  );
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** Live countdown to the next (or in-progress) pass over the selected station. */
+function NextPassCountdown({
+  passes,
+  stationLabel,
+}: {
+  passes: DashboardPass[];
+  stationLabel?: string;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // First pass that hasn't ended yet (covers a pass currently in progress).
+  const upcoming = passes.find((p) => new Date(p.set).getTime() > now);
+
+  let label = 'Próxima passagem';
+  let value = 'Sem passagens previstas';
+  let detail = 'Aumente a janela de dias ou confira a estação selecionada.';
+
+  if (upcoming) {
+    const riseMs = new Date(upcoming.rise).getTime();
+    const setMs = new Date(upcoming.set).getTime();
+    const inProgress = now >= riseMs;
+    const totalSec = Math.max(
+      0,
+      Math.floor(((inProgress ? setMs : riseMs) - now) / 1000),
+    );
+    const d = Math.floor(totalSec / 86400);
+    const h = Math.floor((totalSec % 86400) / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    label = inProgress
+      ? 'Passagem em andamento, termina em'
+      : 'Próxima passagem em';
+    value = `${d > 0 ? `${d}d ` : ''}${pad(h)}:${pad(m)}:${pad(s)}`;
+    detail = `${upcoming.satellite_name}${
+      stationLabel ? ` sobre ${stationLabel}` : ''
+    } · ${formatDateTime(upcoming.rise)}`;
+  }
+
+  return (
+    <Card className="border-primary/30 bg-primary/5">
+      <CardContent className="flex flex-wrap items-center justify-between gap-4 p-6">
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p
+            className={cn(
+              'mt-1 font-semibold tabular-nums',
+              upcoming ? 'font-mono text-4xl text-primary' : 'text-2xl',
+            )}
+          >
+            {value}
+          </p>
+          <p className="mt-1 truncate text-sm text-muted-foreground">
+            {detail}
+          </p>
+        </div>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10">
+          <Timer className="h-6 w-6 text-primary" />
         </span>
       </CardContent>
     </Card>
@@ -174,6 +267,11 @@ export default function DashboardPage() {
     days: 3,
   });
 
+  const selectedStation = stations?.find((s) => s.id === effectiveStationId);
+  const stationLabel = selectedStation
+    ? `${selectedStation.name} (${selectedStation.callsign})`
+    : undefined;
+
   return (
     <div>
       <PageHeader
@@ -203,6 +301,11 @@ export default function DashboardPage() {
               icon={Radar}
             />
           </div>
+
+          <NextPassCountdown
+            passes={data.next_passes}
+            stationLabel={stationLabel}
+          />
 
           <Card>
             <CardHeader className="flex-row items-start justify-between gap-4">
@@ -338,6 +441,7 @@ export default function DashboardPage() {
                       satellites={selectedSatellites}
                       stations={stations ?? []}
                       passes={passes.data}
+                      observer={selectedStation}
                       onState={setSatState}
                     />
                   </div>
@@ -362,6 +466,29 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+
+          {selectedSatellites.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Apontamento da antena</CardTitle>
+                <CardDescription>
+                  Para onde apontar a antena na próxima passagem de{' '}
+                  <span className="font-medium text-foreground">
+                    {selectedSatellites[0].name}
+                  </span>
+                  {stationLabel ? ` em ${stationLabel}` : ''}: azimute, elevação
+                  e o trajeto pelo céu.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AntennaPointing
+                  satellite={selectedSatellites[0]}
+                  observer={selectedStation}
+                  pass={passes.data?.[0]}
+                />
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>

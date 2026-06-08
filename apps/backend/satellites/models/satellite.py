@@ -11,6 +11,8 @@ class Satellite(models.Model):
     name = models.CharField(max_length=120)
     category = models.CharField(max_length=50, default="amateur")
     status = models.CharField(max_length=20, default="active")
+    # Downlink frequency in MHz, used for the live Doppler calculation.
+    downlink_mhz = models.FloatField(null=True, blank=True)
     tle_1 = models.CharField(max_length=80)
     tle_2 = models.CharField(max_length=80)
     updated_at = models.DateTimeField(auto_now=True)

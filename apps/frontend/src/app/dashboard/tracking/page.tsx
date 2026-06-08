@@ -2,20 +2,27 @@
 
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Globe2, Gauge, Mountain, MapPin } from 'lucide-react';
+import { Globe2, Gauge, Mountain, MapPin, Ruler } from 'lucide-react';
 import { useSatellites } from '@/hooks/use-satellites';
 import { useStations } from '@/hooks/use-stations';
 import { usePasses } from '@/hooks/use-passes';
 import { PageHeader } from '@/components/layout/page-header';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import { LoadingState, EmptyState } from '@/components/ui/states';
+import { AntennaPointing } from '@/components/tracking/antenna-pointing';
 import type { SatState } from '@/lib/orbital';
 
 const ISS_NORAD = 25544;
 
-// MapLibre touches the DOM/WebGL — load it only in the browser.
+// MapLibre touches the DOM/WebGL, so load it only in the browser.
 const SatelliteMap = dynamic(
   () => import('@/components/tracking/satellite-map').then((m) => m.SatelliteMap),
   {
@@ -47,10 +54,24 @@ function Telemetry({ state }: { state: SatState | null }) {
       label: 'Velocidade',
       value: state ? `${(state.velocityKmS * 3600).toFixed(0)} km/h` : '—',
     },
+    {
+      icon: Ruler,
+      label: 'Distância',
+      value:
+        state?.rangeKm != null
+          ? `${Math.round(state.rangeKm).toLocaleString('pt-BR')} km`
+          : '—',
+      title:
+        state?.elevationDeg != null
+          ? state.elevationDeg >= 0
+            ? `Elevação ${state.elevationDeg.toFixed(1)}°`
+            : 'Abaixo do horizonte'
+          : undefined,
+    },
   ];
   return (
-    <div className="grid grid-cols-3 gap-3">
-      {items.map(({ icon: Icon, label, value }) => (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {items.map(({ icon: Icon, label, value, title }) => (
         <div
           key={label}
           className="rounded-md border border-border bg-card/60 p-3"
@@ -59,7 +80,9 @@ function Telemetry({ state }: { state: SatState | null }) {
             <Icon className="h-3.5 w-3.5" />
             {label}
           </div>
-          <p className="mt-1 font-mono text-sm text-foreground">{value}</p>
+          <p className="mt-1 font-mono text-sm text-foreground" title={title}>
+            {value}
+          </p>
         </div>
       ))}
     </div>
@@ -135,6 +158,7 @@ export default function TrackingPage() {
                 satellites={[selected]}
                 stations={stations.data ?? []}
                 passes={passes.data}
+                observer={firstStation}
                 onState={setState}
               />
             </div>
@@ -157,6 +181,25 @@ export default function TrackingPage() {
           <Globe2 className="h-3.5 w-3.5" /> Atualização a cada 1s
         </span>
       </div>
+
+      {selected && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>Apontamento da antena</CardTitle>
+            <CardDescription>
+              Para onde apontar a antena na próxima passagem: azimute, elevação
+              e o trajeto pelo céu.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AntennaPointing
+              satellite={selected}
+              observer={firstStation}
+              pass={passes.data?.[0]}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

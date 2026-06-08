@@ -9,12 +9,25 @@ import {
   propagate,
   gstime,
   eciToGeodetic,
+  eciToEcf,
+  ecfToLookAngles,
+  degreesToRadians,
   degreesLat,
   degreesLong,
   type SatRec,
   type EciVec3,
 } from 'satellite.js';
 import { EARTH_RADIUS_KM, normalizeLon, type LngLat } from './geo';
+
+/** A ground observer (e.g. a station) used to compute look angles. */
+export interface Observer {
+  /** Latitude in degrees. */
+  latitude: number;
+  /** Longitude in degrees. */
+  longitude: number;
+  /** Height above sea level, kilometres. */
+  altitudeKm: number;
+}
 
 export interface SatState {
   lat: number;
@@ -23,6 +36,12 @@ export interface SatState {
   altitudeKm: number;
   /** Scalar speed, kilometres per second. */
   velocityKmS: number;
+  /** Slant range to the observer in km (only when an observer is given). */
+  rangeKm?: number;
+  /** Elevation above the observer's horizon in degrees (negative = hidden). */
+  elevationDeg?: number;
+  /** Azimuth from the observer in degrees (0=N, 90=E), antenna heading. */
+  azimuthDeg?: number;
 }
 
 /** Parse a TLE pair into an SGP4 record. Throws if the TLE is malformed. */
@@ -46,7 +65,11 @@ export function periodMinutes(satrec: SatRec): number {
  * Propagate the satellite to `date` and return its sub-point and speed.
  * Returns null if SGP4 fails for that time (e.g. decayed orbit).
  */
-export function propagateAt(satrec: SatRec, date: Date): SatState | null {
+export function propagateAt(
+  satrec: SatRec,
+  date: Date,
+  observer?: Observer,
+): SatState | null {
   const pv = propagate(satrec, date);
   const position = pv.position as EciVec3<number> | false;
   const velocity = pv.velocity as EciVec3<number> | false;
@@ -58,12 +81,29 @@ export function propagateAt(satrec: SatRec, date: Date): SatState | null {
     ? Math.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2)
     : 0;
 
-  return {
+  const state: SatState = {
     lat: degreesLat(geo.latitude),
     lon: normalizeLon(degreesLong(geo.longitude)),
     altitudeKm: geo.height,
     velocityKmS,
   };
+
+  if (observer) {
+    const ecf = eciToEcf(position, gmst);
+    const look = ecfToLookAngles(
+      {
+        latitude: degreesToRadians(observer.latitude),
+        longitude: degreesToRadians(observer.longitude),
+        height: observer.altitudeKm,
+      },
+      ecf,
+    );
+    state.rangeKm = look.rangeSat;
+    state.elevationDeg = look.elevation * (180 / Math.PI);
+    state.azimuthDeg = look.azimuth * (180 / Math.PI);
+  }
+
+  return state;
 }
 
 /**

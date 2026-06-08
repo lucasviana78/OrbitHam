@@ -14,9 +14,16 @@ class SatelliteOut(Schema):
     name: str
     category: str
     status: str
+    downlink_mhz: float | None = None
     tle_1: str
     tle_2: str
     updated_at: datetime
+
+
+class SatelliteFrequencyIn(Schema):
+    """Input schema to set a satellite's downlink frequency (MHz)."""
+
+    downlink_mhz: float | None = None
 
 
 class ImportResult(Schema):
