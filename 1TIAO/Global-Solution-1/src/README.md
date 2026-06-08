@@ -103,10 +103,8 @@ docker compose exec frontend pnpm vitest
 - Consulta de passagens (rise/peak/set + elevação máxima)
 - Dashboard operacional
 
-Detalhes de backlog, critérios de aceitação e Definition of Done em
-[`docs/SPRINT_MVP.md`](docs/SPRINT_MVP.md). Rastreamento de entrega em
-[`docs/DELIVERY_TRACKER.md`](docs/DELIVERY_TRACKER.md). Contrato de integração em
-[`docs/API_CONTRACT.md`](docs/API_CONTRACT.md).
+O contrato de integração da API está em
+[`../docs/API_CONTRACT.md`](../docs/API_CONTRACT.md).
 
 ### Roadmap futuro (fora do MVP)
 
@@ -118,9 +116,5 @@ Detalhes de backlog, critérios de aceitação e Definition of Done em
 
 ## Documentação
 
-- [`docs/OrbitHam_PRD.md`](docs/OrbitHam_PRD.md) — Requisitos de produto
-- [`docs/OrbitHam_Arquitetura.md`](docs/OrbitHam_Arquitetura.md) — Arquitetura
-- [`docs/OrbitHam_CODING_GUIDELINES.md`](docs/OrbitHam_CODING_GUIDELINES.md) — Padrões de código e Definition of Done
-- [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) — Contrato de API do MVP
-- [`docs/SPRINT_MVP.md`](docs/SPRINT_MVP.md) — Backlog do Sprint MVP
-- [`docs/DELIVERY_TRACKER.md`](docs/DELIVERY_TRACKER.md) — Rastreamento de entrega
+Documentação completa no [README principal do repositório](../../../README.md).
+Contrato de API em [`../docs/API_CONTRACT.md`](../docs/API_CONTRACT.md).

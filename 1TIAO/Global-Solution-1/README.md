@@ -38,8 +38,7 @@ a estrutura do template FIAP.
 - **src**: código-fonte (`apps/frontend`, `apps/backend`, `apps/analytics`,
   `apps/rotor`), infraestrutura e `docker-compose`.
 - **data**: dados utilizados na análise (TLEs).
-- **docs**: documentação do projeto e o relatório da Global Solution
-  (`RELATORIO_GS.pdf`).
+- **docs**: o relatório da Global Solution (`RELATORIO_GS.pdf`) e as imagens.
 
 ## 🔧 Como executar
 

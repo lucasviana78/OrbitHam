@@ -138,9 +138,9 @@ docker compose exec frontend npx vitest run
 
 ## 📚 Documentação
 
-Em [`1TIAO/Global-Solution-1/docs/`](1TIAO/Global-Solution-1/docs/): PRD,
-arquitetura, diretrizes de código, contrato de API, plano de testes e o
-relatório da Global Solution.
+O **relatório da Global Solution** (PDF) e o contrato de API estão em
+[`1TIAO/Global-Solution-1/docs/`](1TIAO/Global-Solution-1/docs/). Cada módulo do
+projeto tem o seu próprio README (`src/apps/analytics`, `src/apps/rotor`).
 
 ---
 

@@ -28,3 +28,18 @@ test-results/
 # OS / editor
 .DS_Store
 *.log
+
+# Claude Code (config local)
+.claude/
+
+# Celery beat (runtime)
+celerybeat-schedule*
+
+# Documentos internos de planejamento (nao versionados)
+OrbitHam_PRD.md
+OrbitHam_Arquitetura.md
+OrbitHam_CODING_GUIDELINES.md
+SPRINT_MVP.md
+DELIVERY_TRACKER.md
+QA_TEST_PLAN.md
+ACCEPTANCE_CHECKLIST.md
