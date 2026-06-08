@@ -73,8 +73,8 @@ describe('layout & brand', () => {
     expect(screen.getByText('desc')).toBeInTheDocument();
   });
 
-  it('Brand renders the product name', () => {
+  it('Brand renders the product logo', () => {
     render(<Brand />);
-    expect(screen.getByText('Ham')).toBeInTheDocument();
+    expect(screen.getByAltText('OrbitHam')).toBeInTheDocument();
   });
 });

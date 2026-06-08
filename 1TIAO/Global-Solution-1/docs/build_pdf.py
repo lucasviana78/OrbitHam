@@ -1,6 +1,10 @@
-"""Gera o relatorio da Global Solution em PDF (RELATORIO_GS.pdf).
+"""Gera o relatorio da Global Solution em PDF, formatado nas normas ABNT.
 
-Python puro (fpdf2), sem dependencias de sistema. Usa as imagens de docs/img.
+Python puro (fpdf2). ABNT aplicado: A4; margens 3-3-2-2 cm (esq/sup/dir/inf);
+Times New Roman 12; espacamento 1,5; texto justificado com recuo de paragrafo
+de 1,25 cm; secoes numeradas; numero de pagina no canto superior direito; capa
+e folha de rosto; figuras com legenda e fonte; referencias.
+
 Rode:  <venv>/bin/python build_pdf.py
 """
 from __future__ import annotations
@@ -15,122 +19,97 @@ IMG = DOCS / "img"
 ASSETS = DOCS.parent.parent.parent / "assets"  # repo-root/assets
 OUT = DOCS / "RELATORIO_GS.pdf"
 
-INK = (15, 23, 42)
-ACCENT = (2, 132, 199)
-MUTED = (71, 85, 105)
-CODE_BG = (241, 245, 249)
+INK = (0, 0, 0)
+MUTED = (90, 90, 90)
+CODE_BG = (244, 246, 249)
+
+LH = 6.5          # altura de linha (12pt com espacamento ~1,5)
+INDENT = 12.5     # recuo de primeira linha (1,25 cm)
+BODY = ("Times", "", 12)
 
 _REPL = {
     "→": "->", "—": "-", "–": "-", "•": "-", "≥": ">=", "≤": "<=",
     "×": "x", "“": '"', "”": '"', "’": "'", "‘": "'", "…": "...",
-    "🛰️": "", "📡": "", "🎓": "", "✨": "", "🧰": "", "🏛️": "",
-    "📁": "", "🔧": "", "📜": "", "👨‍🎓": "", "️": "", "🛰": "",
+    "🛰️": "", "📡": "", "🎓": "", "️": "", "🛰": "",
 }
 
 
 def san(text: str) -> str:
-    for key, value in _REPL.items():
-        text = text.replace(key, value)
+    """Latin-1 preserva os acentos do portugues; so trocamos simbolos fora dele."""
+    for k, v in _REPL.items():
+        text = text.replace(k, v)
     return text.encode("latin-1", "ignore").decode("latin-1")
 
 
 class Report(FPDF):
-    def multi_cell(self, w, h=None, txt="", *args, **kwargs):  # type: ignore[override]
-        # Sempre volta o cursor para a margem esquerda, evitando largura zero.
-        kwargs.setdefault("new_x", XPos.LMARGIN)
-        kwargs.setdefault("new_y", YPos.NEXT)
-        return super().multi_cell(w, h, txt, *args, **kwargs)
+    fig_n = 0
+
+    def multi_cell(self, w, h=None, txt="", *a, **k):  # type: ignore[override]
+        k.setdefault("new_x", XPos.LMARGIN)
+        k.setdefault("new_y", YPos.NEXT)
+        return super().multi_cell(w, h, txt, *a, **k)
 
     def header(self) -> None:
-        if self.page_no() == 1:
+        # ABNT: numeracao no canto superior direito, a partir da parte textual.
+        if self.page_no() <= 2:
             return
-        self.set_y(8)
-        self.set_font("Helvetica", "", 8)
-        self.set_text_color(*MUTED)
-        self.cell(0, 5, san("OrbitHam - Global Solution 2026.1 - FIAP"), align="R")
-        self.ln(6)
-
-    def footer(self) -> None:
-        if self.page_no() == 1:
-            return
-        self.set_y(-12)
-        self.set_font("Helvetica", "", 8)
-        self.set_text_color(*MUTED)
-        self.cell(0, 5, str(self.page_no()), align="C")
+        self.set_y(15)
+        self.set_font("Times", "", 10)
+        self.set_text_color(*INK)
+        self.cell(0, 5, str(self.page_no()), align="R")
+        self.set_y(self.t_margin)
 
 
-def cover(pdf: Report) -> None:
-    pdf.add_page()
-    logo = ASSETS / "logo-fiap.png"
-    if logo.exists():
-        pdf.image(str(logo), x=(210 - 60) / 2, y=22, w=60)
-    pdf.set_y(64)
+# --------------------------------------------------------------------------- #
+# Blocos de conteudo                                                           #
+# --------------------------------------------------------------------------- #
+def para(pdf: Report, text: str) -> None:
+    pdf.set_font(*BODY)
     pdf.set_text_color(*INK)
-    pdf.set_font("Helvetica", "B", 22)
-    pdf.multi_cell(0, 11, san("OrbitHam"), align="C")
-    pdf.set_font("Helvetica", "", 14)
-    pdf.set_text_color(*MUTED)
-    pdf.multi_cell(0, 8, san("Estacao Terrena para Rastreamento de Satelites"), align="C")
+    usable = pdf.epw
+    words = san(text).split()
+    first, i = "", 0
+    while i < len(words):
+        cand = (first + " " + words[i]).strip()
+        if pdf.get_string_width(cand) <= usable - INDENT:
+            first, i = cand, i + 1
+        else:
+            break
+    if i == 0 and words:
+        first, i = words[0], 1
+    pdf.set_x(pdf.l_margin + INDENT)
+    pdf.cell(usable - INDENT, LH, first)
+    pdf.ln(LH)
+    if i < len(words):
+        pdf.multi_cell(0, LH, " ".join(words[i:]), align="J")
     pdf.ln(2)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.set_text_color(*ACCENT)
-    pdf.multi_cell(0, 7, san("Global Solution 2026.1 - Graduacao ON em IA"), align="C")
-
-    pdf.ln(12)
-    pdf.set_text_color(*INK)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.multi_cell(0, 7, san("Integrantes"), align="C")
-    pdf.set_font("Helvetica", "", 12)
-    for nome in [
-        "Arthur Prudencio Soares - RM569295",
-        "Caroline Coelho Mendes - RM570370",
-        "Leandro Paiva - RM572159",
-        "Lucas Viana de Lima - RM571835",
-        "Matheus Tavares Lima - RM572808",
-    ]:
-        pdf.multi_cell(0, 7, san(nome), align="C")
-
-    pdf.ln(10)
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.set_text_color(*ACCENT)
-    pdf.multi_cell(0, 9, san("QUERO CONCORRER"), align="C")
 
 
 def h1(pdf: Report, text: str) -> None:
+    if pdf.get_y() > 248:
+        pdf.add_page()
     pdf.ln(3)
-    pdf.set_font("Helvetica", "B", 15)
-    pdf.set_text_color(*ACCENT)
-    pdf.multi_cell(0, 8, san(text))
-    pdf.set_draw_color(*ACCENT)
-    pdf.set_line_width(0.4)
-    y = pdf.get_y()
-    pdf.line(pdf.l_margin, y, 210 - pdf.r_margin, y)
-    pdf.ln(3)
+    pdf.set_font("Times", "B", 12)
+    pdf.set_text_color(*INK)
+    pdf.multi_cell(0, LH, san(text.upper()))
+    pdf.ln(2)
 
 
 def h2(pdf: Report, text: str) -> None:
     pdf.ln(2)
-    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_font("Times", "B", 12)
     pdf.set_text_color(*INK)
-    pdf.multi_cell(0, 7, san(text))
+    pdf.multi_cell(0, LH, san(text))
     pdf.ln(1)
 
 
-def para(pdf: Report, text: str) -> None:
-    pdf.set_font("Helvetica", "", 10.5)
+def alineas(pdf: Report, items: list[str]) -> None:
+    pdf.set_font(*BODY)
     pdf.set_text_color(*INK)
-    pdf.multi_cell(0, 5.6, san(text))
-    pdf.ln(2)
-
-
-def bullets(pdf: Report, items: list[str]) -> None:
-    pdf.set_font("Helvetica", "", 10.5)
-    pdf.set_text_color(*INK)
-    for it in items:
-        x = pdf.get_x()
-        pdf.cell(5, 5.6, "-")
-        pdf.set_x(x + 5)
-        pdf.multi_cell(0, 5.6, san(it))
+    letters = "abcdefghijklmnop"
+    for k, it in enumerate(items):
+        pdf.set_x(pdf.l_margin + INDENT)
+        pdf.multi_cell(pdf.epw - INDENT, LH, san(f"{letters[k]}) {it}"), align="J")
     pdf.ln(2)
 
 
@@ -139,12 +118,11 @@ def code(pdf: Report, text: str, caption: str = "") -> None:
     pdf.set_font("Courier", "", 8.5)
     line_h = 4.2
     height = line_h * len(lines) + 4
-    pdf.set_fill_color(*CODE_BG)
-    x0, y0 = pdf.l_margin, pdf.get_y()
-    width = 210 - pdf.l_margin - pdf.r_margin
-    if y0 + height > 285:
+    x0, width = pdf.l_margin, pdf.epw
+    if pdf.get_y() + height > 268:
         pdf.add_page()
-        y0 = pdf.get_y()
+    y0 = pdf.get_y()
+    pdf.set_fill_color(*CODE_BG)
     pdf.rect(x0, y0, width, height, style="F")
     pdf.set_xy(x0 + 2, y0 + 2)
     pdf.set_text_color(30, 41, 59)
@@ -154,84 +132,199 @@ def code(pdf: Report, text: str, caption: str = "") -> None:
         pdf.ln(line_h)
     pdf.ln(1)
     if caption:
-        pdf.set_font("Helvetica", "I", 8.5)
+        pdf.set_font("Times", "", 10)
         pdf.set_text_color(*MUTED)
-        pdf.multi_cell(0, 4.5, san(caption))
+        pdf.multi_cell(0, 4.6, san(f"Quadro - {caption}"))
     pdf.ln(2)
 
 
-def figure(pdf: Report, name: str, caption: str, w: float = 150) -> None:
+def figure(pdf: Report, name: str, desc: str, w: float = 120) -> None:
     path = IMG / name
     if not path.exists():
         return
-    if pdf.get_y() + w * 0.6 > 280:
+    pdf.fig_n += 1
+    if pdf.get_y() + w * 0.75 + 20 > 275:
         pdf.add_page()
+    pdf.set_font("Times", "", 10)
+    pdf.set_text_color(*INK)
+    pdf.multi_cell(0, 5, san(f"Figura {pdf.fig_n} - {desc}"), align="C")
     pdf.image(str(path), x=(210 - w) / 2, w=w)
     pdf.ln(1)
-    pdf.set_font("Helvetica", "I", 8.5)
+    pdf.set_font("Times", "", 10)
     pdf.set_text_color(*MUTED)
-    pdf.multi_cell(0, 4.5, san(caption), align="C")
+    pdf.multi_cell(0, 5, san("Fonte: elaborado pelos autores (2026)."), align="C")
     pdf.ln(3)
+
+
+AUTHORS = [
+    "Arthur Prudêncio Soares - RM569295",
+    "Caroline Coelho Mendes - RM570370",
+    "Leandro Paiva - RM572159",
+    "Lucas Viana de Lima - RM571835",
+    "Matheus Tavares Lima - RM572808",
+]
+TITLE = "ORBITHAM: ESTAÇÃO TERRENA PARA RASTREAMENTO DE SATÉLITES"
+
+
+def capa(pdf: Report) -> None:
+    pdf.add_page()
+    pdf.set_auto_page_break(False)
+
+    fiap = ASSETS / "logo-fiap.png"
+    if fiap.exists():
+        pdf.image(str(fiap), x=(210 - 36) / 2, y=18, w=36)
+
+    pdf.set_y(40)
+    pdf.set_font("Times", "B", 12)
+    pdf.set_text_color(*INK)
+    pdf.multi_cell(0, 6, san("FACULDADE DE INFORMÁTICA E ADMINISTRAÇÃO PAULISTA"), align="C")
+    pdf.set_font("Times", "", 12)
+    pdf.multi_cell(0, 6, san("Graduação ON em Inteligência Artificial"), align="C")
+
+    pdf.set_y(66)
+    pdf.set_font("Times", "", 12)
+    for a in AUTHORS:
+        pdf.multi_cell(0, 6, san(a), align="C")
+
+    logo = ASSETS / "orbitham-logo-dark.png"
+    if logo.exists():
+        pdf.image(str(logo), x=(210 - 82) / 2, y=110, w=82)
+
+    pdf.set_y(160)
+    pdf.set_font("Times", "B", 14)
+    pdf.set_text_color(*INK)
+    pdf.multi_cell(0, 7.5, san(TITLE), align="C")
+    pdf.set_font("Times", "", 12)
+    pdf.set_text_color(*MUTED)
+    pdf.multi_cell(0, 6, san("Global Solution 2026.1"), align="C")
+
+    pdf.set_y(192)
+    pdf.set_font("Times", "B", 14)
+    pdf.set_text_color(*INK)
+    pdf.multi_cell(0, 8, san("QUERO CONCORRER"), align="C")
+
+    pdf.set_y(262)
+    pdf.set_font("Times", "", 12)
+    pdf.multi_cell(0, 6, san("São Paulo"), align="C")
+    pdf.multi_cell(0, 6, san("2026"), align="C")
+
+    pdf.set_auto_page_break(True, margin=20)
+
+
+def folha_rosto(pdf: Report) -> None:
+    pdf.add_page()
+    pdf.set_auto_page_break(False)
+
+    pdf.set_y(36)
+    pdf.set_font("Times", "", 12)
+    pdf.set_text_color(*INK)
+    for a in AUTHORS:
+        pdf.multi_cell(0, 6, san(a), align="C")
+
+    pdf.set_y(100)
+    pdf.set_font("Times", "B", 14)
+    pdf.multi_cell(0, 7.5, san(TITLE), align="C")
+
+    # Natureza do trabalho (bloco recuado a direita, conforme ABNT).
+    pdf.set_y(135)
+    pdf.set_x(105)
+    pdf.set_font("Times", "", 11)
+    natureza = (
+        "Trabalho apresentado à Faculdade de Informática e Administração "
+        "Paulista (FIAP) como requisito da Global Solution 2026.1 do curso de "
+        "Graduação ON em Inteligência Artificial."
+    )
+    pdf.multi_cell(85, 5.5, san(natureza), align="J")
+
+    pdf.set_y(262)
+    pdf.set_x(pdf.l_margin)
+    pdf.set_font("Times", "", 12)
+    pdf.multi_cell(0, 6, san("São Paulo"), align="C")
+    pdf.multi_cell(0, 6, san("2026"), align="C")
+
+    pdf.set_auto_page_break(True, margin=20)
+
+
+def referencias(pdf: Report) -> None:
+    pdf.add_page()
+    pdf.set_font("Times", "B", 12)
+    pdf.set_text_color(*INK)
+    pdf.multi_cell(0, LH, san("REFERÊNCIAS"), align="C")
+    pdf.ln(3)
+    refs = [
+        "RHODES, Brandon. Skyfield: high precision research-grade positions for "
+        "planets and Earth satellites. Disponível em: https://rhodesmill.org/skyfield/. "
+        "Acesso em: jun. 2026.",
+        "VALLADO, David A. et al. Revisiting Spacetrack Report #3 (SGP4). AIAA, 2006.",
+        "CELESTRAK. NORAD GP Element Sets (TLE). Disponível em: "
+        "https://celestrak.org/. Acesso em: jun. 2026.",
+        "SATELLITE.JS. SGP4/SDP4 implementation in JavaScript. Disponível em: "
+        "https://github.com/shashwatak/satellite-js. Acesso em: jun. 2026.",
+        "FIAP. Global Solution 2026.1: economia espacial. São Paulo: FIAP, 2026.",
+    ]
+    pdf.set_font(*BODY)
+    for r in refs:
+        pdf.multi_cell(0, LH, san(r), align="J")
+        pdf.ln(1)
 
 
 def build() -> None:
     pdf = Report(format="A4")
-    pdf.set_auto_page_break(True, margin=15)
-    pdf.set_margins(18, 14, 18)
+    pdf.set_margins(30, 30, 20)               # ABNT: esq 3, sup 3, dir 2 (cm)
+    pdf.set_auto_page_break(True, margin=20)  # ABNT: inf 2 cm
 
-    cover(pdf)
+    capa(pdf)
+    folha_rosto(pdf)
+
     pdf.add_page()
-
-    # ---- 1. Introducao ----
-    h1(pdf, "1. Introducao")
+    # 1 INTRODUÇÃO
+    h1(pdf, "1 Introdução")
     para(pdf,
-         "O espaco deixou de ser apenas exploracao cientifica e se tornou um dos "
-         "maiores ecossistemas de inovacao e transformacao economica do planeta. "
-         "Satelites monitoram o clima, conectam regioes remotas e apoiam decisoes "
-         "em escala global. Dentro desse cenario, a comunicacao via satelite por "
-         "radioamadores depende de operar passagens de satelites de orbita baixa "
-         "(LEO): janelas curtas em que o satelite fica acima do horizonte da "
-         "estacao.")
+         "O espaço deixou de ser apenas exploração científica e se tornou um dos "
+         "maiores ecossistemas de inovação e transformação econômica do planeta. "
+         "Satélites monitoram o clima, conectam regiões remotas e apoiam decisões "
+         "em escala global. Nesse cenário, a comunicação via satélite por "
+         "radioamadores depende de operar passagens de satélites de órbita baixa "
+         "(LEO): janelas curtas em que o satélite fica acima do horizonte da estação.")
     para(pdf,
          "Operar uma passagem exige responder, em tempo real, a quatro perguntas: "
-         "quando o satelite aparece, por quanto tempo, com que qualidade "
-         "(elevacao) e para onde apontar a antena. Hoje essas informacoes ficam "
+         "quando o satélite aparece, por quanto tempo, com que qualidade (elevação) "
+         "e para onde apontar a antena. Atualmente essas informações ficam "
          "espalhadas em ferramentas diferentes.")
     para(pdf,
-         "O OrbitHam, nossa resposta a Global Solution 2026.1, reune tudo isso em "
-         "uma solucao unica e pratica, com tres frentes que compartilham o mesmo "
-         "motor de propagacao orbital (Skyfield/SGP4): uma aplicacao web, uma "
-         "camada de analise de dados em Python e a automacao de um rotor de "
-         "antena com ESP32.")
+         "O OrbitHam, resposta do grupo à Global Solution 2026.1, reúne tudo isso "
+         "em uma solução única e prática, com três frentes que compartilham o mesmo "
+         "motor de propagação orbital (Skyfield/SGP4): uma aplicação web, uma "
+         "camada de análise de dados em Python e a automação de um rotor de antena "
+         "com ESP32.")
 
-    # ---- 2. Desenvolvimento ----
-    h1(pdf, "2. Desenvolvimento")
-
-    h2(pdf, "2.1 Visao geral da solucao")
-    bullets(pdf, [
-        "Aplicacao web: mapa orbital ao vivo (SGP4 no navegador), predicao de "
-        "passagens, dashboard com contagem regressiva e apontamento de antena "
-        "com azimute, elevacao e correcao Doppler.",
-        "Analise de dados (Python/Jupyter): previsao de decaimento orbital e "
-        "analise de melhores janelas de operacao, com Pandas, Matplotlib/Seaborn "
-        "e Machine Learning introdutorio (scikit-learn).",
-        "Automacao (ESP32): um controlador em Python calcula o apontamento e "
-        "envia por Wi-Fi para um ESP32 que move dois servos, apontando a antena "
-        "fisicamente para o satelite.",
+    # 2 DESENVOLVIMENTO
+    h1(pdf, "2 Desenvolvimento")
+    h2(pdf, "2.1 Visão geral da solução")
+    alineas(pdf, [
+        "Aplicação web: mapa orbital ao vivo (SGP4 no navegador), predição de "
+        "passagens, dashboard com contagem regressiva e apontamento de antena com "
+        "azimute, elevação e correção Doppler;",
+        "Análise de dados (Python/Jupyter): previsão de decaimento orbital e "
+        "análise de melhores janelas de operação, com Pandas, Matplotlib/Seaborn e "
+        "aprendizado de máquina introdutório (scikit-learn);",
+        "Automação (ESP32): um controlador em Python calcula o apontamento e envia "
+        "por Wi-Fi para um ESP32 que move dois servos, apontando a antena "
+        "fisicamente para o satélite.",
     ])
 
     h2(pdf, "2.2 Arquitetura")
     para(pdf,
-         "O backend segue camadas API -> Service -> Repository -> Model: as rotas "
-         "nunca acessam o banco diretamente e as entradas/saidas passam por "
-         "Schemas. A propagacao orbital roda em Python no backend (Skyfield) e no "
-         "navegador (satellite.js) para o tempo real sem custo de servidor. O "
-         "mesmo calculo alimenta a analise de dados e o rotor, mantendo as tres "
-         "frentes coerentes.")
-    figure(pdf, "arquitetura.png", "Figura 1. Arquitetura da solucao OrbitHam.", w=165)
+         "O backend segue as camadas API, Service, Repository e Model: as rotas "
+         "nunca acessam o banco diretamente e as entradas e saídas passam por "
+         "esquemas. A propagação orbital roda em Python no backend (Skyfield) e no "
+         "navegador (satellite.js), permitindo o tempo real sem custo de servidor. "
+         "O mesmo cálculo alimenta a análise de dados e o rotor, mantendo as três "
+         "frentes coerentes, como ilustra a figura a seguir.")
+    figure(pdf, "arquitetura.png", "Arquitetura da solução OrbitHam.", w=150)
 
-    h2(pdf, "2.3 Codigos principais")
-    para(pdf, "Predicao de passagens no backend (Skyfield/SGP4):")
+    h2(pdf, "2.3 Códigos principais")
+    para(pdf, "A predição de passagens no backend usa o Skyfield (SGP4):")
     code(pdf,
          "times, events = satellite.find_events(\n"
          "    observer, t0, t1, altitude_degrees=10.0)\n"
@@ -243,105 +336,98 @@ def build() -> None:
          "        current['max_elevation'] = alt.degrees\n"
          "    elif event == 2: # descida (set)\n"
          "        passes.append(current)",
-         "apps/backend/passes/services/pass_prediction_service.py")
-    para(pdf, "Apontamento (azimute/elevacao) e distancia ao satelite:")
+         "predição de passagens (backend).")
+    para(pdf, "O apontamento (azimute e elevação) e a distância ao satélite:")
     code(pdf,
          "alt, az, distance = (satellite - observer).at(t).altaz()\n"
-         "azimute   = az.degrees      # bussola: para onde apontar\n"
-         "elevacao  = alt.degrees     # altura acima do horizonte\n"
-         "visivel   = elevacao >= 0   # satelite acima do horizonte",
-         "apps/rotor/controller/rotor_controller.py")
-    para(pdf, "Regressao do decaimento orbital (analise de dados):")
+         "azimute  = az.degrees       # para onde apontar a antena\n"
+         "elevacao = alt.degrees      # altura acima do horizonte\n"
+         "visivel  = elevacao >= 0    # satelite acima do horizonte",
+         "cálculo de apontamento (controlador do rotor).")
+    para(pdf, "A regressão do decaimento orbital, na análise de dados:")
     code(pdf,
          "coeffs = np.polyfit(daily['day'], daily['altitude_km'], 2)\n"
          "poly = np.poly1d(coeffs)\n"
-         "# extrapola ate o limiar de reentrada (120 km)\n"
-         "for day in range(6000):\n"
+         "for day in range(6000):        # ate o limiar de reentrada\n"
          "    if poly(day) <= 120.0:\n"
-         "        return day  # estimativa de reentrada",
-         "apps/analytics/orbitham_analytics/decay.py")
-    para(pdf, "Firmware do ESP32 recebendo o apontamento e movendo os servos:")
+         "        return day             # estimativa de reentrada",
+         "regressão do decaimento orbital.")
+    para(pdf, "O firmware do ESP32 recebe os ângulos e move os servos:")
     code(pdf,
          "void handlePoint() {\n"
          "  float az = server.arg(\"az\").toFloat();\n"
          "  float el = server.arg(\"el\").toFloat();\n"
          "  azServo.write(map(az, 0, 360, 0, 180));\n"
          "  elServo.write((int)(el * 2));   // 0..90 -> 0..180\n"
-         "  digitalWrite(LED_PIN, visible ? HIGH : LOW);\n"
          "}",
-         "apps/rotor/firmware/rotor_esp32/rotor_esp32.ino")
+         "firmware do rotor (ESP32).")
 
-    h2(pdf, "2.4 Decisoes do grupo")
-    bullets(pdf, [
-        "Propagacao SGP4 no navegador (satellite.js) para o mapa em tempo real, "
-        "evitando custo de servidor e latencia.",
-        "Skyfield/SGP4 em Python no backend e na analise: preciso, testavel e "
-        "executavel offline.",
-        "Analise em notebooks Jupyter, reproduzivel (dados de TLE embutidos), "
-        "para evidenciar o passo a passo de ciencia de dados.",
-        "Mesmos limiares de qualidade de passagem (45 graus e 25 graus) no app e "
-        "nos notebooks, mantendo produto e analise consistentes.",
-        "Comunicacao app/ESP32 por HTTP simples (form-urlencoded), sem "
-        "bibliotecas extras no firmware.",
-        "Interface inteiramente em portugues.",
+    h2(pdf, "2.4 Decisões do grupo")
+    alineas(pdf, [
+        "Propagação SGP4 no navegador para o mapa em tempo real, evitando custo de "
+        "servidor e latência;",
+        "Skyfield/SGP4 em Python no backend e na análise: preciso, testável e "
+        "executável offline;",
+        "Análise em notebooks reproduzíveis, para evidenciar o passo a passo de "
+        "ciência de dados;",
+        "Mesmos limiares de qualidade de passagem (45 e 25 graus) no app e nos "
+        "notebooks, mantendo produto e análise consistentes;",
+        "Comunicação app/ESP32 por HTTP simples, sem bibliotecas extras no firmware.",
     ])
 
-    # ---- 3. Resultados Esperados ----
-    pdf.add_page()
-    h1(pdf, "3. Resultados Esperados")
+    # 3 RESULTADOS ESPERADOS
+    h1(pdf, "3 Resultados Esperados")
     para(pdf,
-         "A solucao entrega um produto utilizavel e uma analise que orienta a "
-         "operacao. A seguir, os principais resultados.")
-
-    h2(pdf, "3.1 Previsao de decaimento orbital")
+         "A solução entrega um produto utilizável e uma análise que orienta a "
+         "operação. A seguir, os principais resultados.")
+    h2(pdf, "3.1 Previsão de decaimento orbital")
     para(pdf,
-         "Propagando o TLE da ISS e ajustando uma regressao, o modelo estima uma "
-         "perda de altitude de cerca de 69 km/ano e uma reentrada por volta de "
-         "2027. A comparacao entre satelites mostra que objetos baixos (ISS, ~420 "
-         "km) decaem rapido, enquanto altos (AO-7, ~1450 km) sao quase estaveis.")
-    figure(pdf, "decaimento_2.png", "Figura 2. Regressao do decaimento da ISS e limiar de reentrada.", w=150)
-    figure(pdf, "decaimento_3.png", "Figura 3. Taxa de decaimento comparada entre satelites.", w=150)
-
-    h2(pdf, "3.2 Analise de passagens e melhores janelas")
+         "Propagando o TLE da Estação Espacial Internacional e ajustando uma "
+         "regressão, o modelo estima perda de altitude de cerca de 69 km por ano e "
+         "reentrada por volta de 2027. A comparação entre satélites mostra que "
+         "objetos baixos decaem rápido, enquanto os mais altos são quase estáveis.")
+    figure(pdf, "decaimento_2.png", "Regressão do decaimento da ISS e limiar de reentrada.", w=140)
+    figure(pdf, "decaimento_3.png", "Taxa de decaimento comparada entre satélites.", w=140)
+    h2(pdf, "3.2 Análise de passagens e melhores janelas")
     para(pdf,
-         "Para 182 passagens em 14 dias sobre Sao Paulo, o heatmap revela os "
-         "melhores horarios de operacao (em torno das 11h e 22h, hora local). Um "
-         "classificador (arvore de decisao) preve a qualidade da passagem com "
-         "cerca de 84% de acuracia, e a duracao da passagem e a variavel mais "
-         "informativa.")
-    figure(pdf, "passagens_2.png", "Figura 4. Passagens por hora e dia da semana (melhores janelas).", w=150)
-    figure(pdf, "passagens_1.png", "Figura 5. Distribuicao de qualidade das passagens.", w=130)
-    figure(pdf, "passagens_4.png", "Figura 6. Relacao entre duracao e elevacao maxima (ML).", w=150)
+         "Para 182 passagens em 14 dias sobre São Paulo, o mapa de calor revela os "
+         "melhores horários de operação (em torno das 11h e 22h). Um classificador "
+         "prevê a qualidade da passagem com cerca de 84% de acurácia, sendo a "
+         "duração a variável mais informativa.")
+    figure(pdf, "passagens_2.png", "Passagens por hora e dia da semana (melhores janelas).", w=140)
+    figure(pdf, "passagens_1.png", "Distribuição de qualidade das passagens.", w=120)
+    figure(pdf, "passagens_4.png", "Relação entre duração e elevação máxima (aprendizado de máquina).", w=140)
 
-    # screenshots opcionais do app (docs/img/app/*.png)
     app_dir = IMG / "app"
     shots = sorted(app_dir.glob("*.png")) if app_dir.exists() else []
     if shots:
         h2(pdf, "3.3 Telas do aplicativo")
-        for i, shot in enumerate(shots, start=7):
-            figure(pdf, f"app/{shot.name}", f"Figura {i}. Tela do OrbitHam.", w=160)
+        for shot in shots:
+            figure(pdf, f"app/{shot.name}", "Tela do aplicativo OrbitHam.", w=150)
 
-    # ---- 4. Conclusoes ----
-    h1(pdf, "4. Conclusoes")
+    # 4 CONCLUSÕES
+    h1(pdf, "4 Conclusões")
     para(pdf,
-         "O OrbitHam demonstra, na pratica, como a tecnologia espacial melhora "
-         "processos na Terra: transforma dados orbitais publicos (TLE) em "
-         "decisoes operacionais claras, de quando e para onde apontar a antena "
-         "ate a previsao de decaimento de um satelite.")
+         "O OrbitHam demonstra, na prática, como a tecnologia espacial melhora "
+         "processos na Terra: transforma dados orbitais públicos (TLE) em decisões "
+         "operacionais claras, de quando e para onde apontar a antena até a "
+         "previsão de decaimento de um satélite.")
     para(pdf,
-         "A solucao integra as competencias do curso: programacao (Python e "
-         "TypeScript), analise de dados e Machine Learning introdutorio, "
-         "visualizacao, e automacao com ESP32, tudo amarrado pelo mesmo motor "
-         "orbital. As tres frentes se reforcam: o app opera, a analise orienta e "
-         "o hardware executa o apontamento.")
+         "A solução integra as competências do curso: programação em Python e "
+         "TypeScript, análise de dados e aprendizado de máquina introdutório, "
+         "visualização e automação com ESP32, tudo amarrado pelo mesmo motor "
+         "orbital. As três frentes se reforçam: o app opera, a análise orienta e o "
+         "hardware executa o apontamento.")
     para(pdf,
-         "Como evolucao, vislumbramos realimentacao de posicao por sensor IMU no "
-         "rotor, integracao com SDR para recepcao real, aplicativo mobile e "
-         "realimentacao da analise com o historico de TLE ja armazenado pelo "
-         "backend.")
+         "Como evolução, vislumbramos realimentação de posição por sensor inercial "
+         "no rotor, integração com rádio definido por software (SDR) para recepção "
+         "real, aplicativo móvel e realimentação da análise com o histórico de TLE "
+         "já armazenado pelo backend.")
+
+    referencias(pdf)
 
     pdf.output(str(OUT))
-    print("PDF gerado:", OUT)
+    print("PDF (ABNT) gerado:", OUT)
 
 
 if __name__ == "__main__":

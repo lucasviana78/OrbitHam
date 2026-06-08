@@ -6,6 +6,12 @@
 
 <br>
 
+<p align="center">
+  <img src="assets/orbitham-logo-dark.png" alt="OrbitHam" width="55%">
+</p>
+
+<br>
+
 # 🛰️ OrbitHam · Estação Terrena para Rastreamento de Satélites
 
 ## Global Solution 2026.1 · Graduação ON em Inteligência Artificial
