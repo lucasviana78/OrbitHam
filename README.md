@@ -138,8 +138,6 @@ docker compose exec frontend npx vitest run
 ```
 
 ## 📎 Links e vídeo
-
-- **Vídeo da entrega (até 5 min):** [https://youtu.be/t34BdhxTrjc](https://youtu.be/t34BdhxTrjc)
 - **Relatório (PDF):** [`1TIAO/Global-Solution-1/docs/RELATORIO_GS.pdf`](1TIAO/Global-Solution-1/docs/RELATORIO_GS.pdf)
 
 ## 📚 Documentação
