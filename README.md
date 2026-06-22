@@ -16,13 +16,6 @@
 
 ## Global Solution 2026.1 · Graduação ON em Inteligência Artificial
 
-## 👨‍🎓 Integrantes
-- Arthur Prudêncio Soares — RM569295
-- Caroline Coelho Mendes — RM570370
-- Leandro Paiva — RM572159
-- Lucas Viana de Lima — RM571835
-- Matheus Tavares Lima — RM572808
-
 ---
 
 ## 📜 Descrição
